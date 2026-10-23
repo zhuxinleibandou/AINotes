@@ -119,8 +119,8 @@ class ModelProfile(StrictModel):
     clear_api_key: bool = False
     supports_images: bool = False
     output_format: Literal['json_object','json_schema','prompt'] = 'json_object'
-    max_tokens: int = Field(default=8192,ge=256,le=65536)
-    context_chars: int = Field(default=40000,ge=4000,le=120000)
+    max_tokens: int = Field(default=8192,ge=256)
+    context_chars: int = Field(default=40000,ge=4000)
     reasoning_effort: Literal['default','low','medium','high','xhigh','max'] = 'default'
 
 class ModelConnectionRequest(StrictModel):

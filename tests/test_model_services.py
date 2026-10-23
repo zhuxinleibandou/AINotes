@@ -295,3 +295,34 @@ def test_restart_settles_stop_requests_and_retry_does_not_duplicate_paused_job(d
     assert store.paused_tasks()==[]
     assert client.post('/api/settings/resume-tasks').json()['resumed']==0
     assert len(store.active_tasks())==1
+
+@pytest.mark.parametrize('amount',[8192,65536,393216,2_000_000])
+def test_model_budgets_have_no_application_ceiling(db,monkeypatch,amount):
+    client=TestClient(app)
+    payload={'whisper_model':'mlx-community/whisper-large-v3-turbo','generation_backend':'local','local_provider':'ollama','providers':{'ollama':generation.default_profile('ollama')|{'model':'budget-test','max_tokens':amount,'context_chars':amount}}}
+    assert client.put('/api/settings',json=payload).status_code==200
+    saved=client.get('/api/settings').json()['providers']['ollama']
+    assert saved['max_tokens']==saved['context_chars']==amount
+    assert generation.context_chars()==amount
+    def handler(request):
+        assert json.loads(request.content)['max_tokens']==amount
+        return reply(note())
+    transport(monkeypatch,handler)
+    assert generation.generate('仅验证配置传递。',Note,lambda:False)['title']=='模型服务验收'
+
+@pytest.mark.parametrize('field,value',[('max_tokens',0),('max_tokens',255),('context_chars',0),('context_chars',3999)])
+def test_model_budget_minimums_still_reject_invalid_values(field,value):
+    with pytest.raises(ValueError):profile('ollama',**{field:value})
+
+def test_large_context_setting_is_used_without_early_compaction(db,monkeypatch):
+    save('ollama',model='large-context-test',context_chars=393216)
+    monkeypatch.setattr(worker,'generate',lambda *a,**kw:pytest.fail('Configured material fits, no compaction needed'))
+    segments=[{'id':'s1','location':'正文','text':'字'*150000}]
+    text=worker.context_for({'segments':segments},db,lambda:False,lambda stage:None)
+    assert len(text)>120000 and text.endswith('字'*150000)
+
+def test_large_output_budget_allows_response_beyond_old_byte_ceiling(db,monkeypatch):
+    save('ollama',model='large-output-test',max_tokens=1_000_000)
+    value=note();value['overview']='A'*8_000_001
+    transport(monkeypatch,lambda r:reply(value))
+    assert len(generation.generate('协议验收，不调用真实模型。',Note,lambda:False)['overview'])==8_000_001

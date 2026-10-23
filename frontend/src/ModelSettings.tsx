@@ -11,6 +11,63 @@ import {
 import { api, post, put } from "./api";
 import type { Settings, ModelProfile, Provider } from "./types";
 
+const BUDGET_PRESETS = [8192, 65536, 393216];
+
+function ModelBudget({
+  label,
+  value,
+  min,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  disabled: boolean;
+  onChange: (value: number) => void;
+}) {
+  const [custom, setCustom] = useState(() => !BUDGET_PRESETS.includes(value));
+  const isCustom = custom || !BUDGET_PRESETS.includes(value);
+  return (
+    <div>
+      <label>
+        {label}
+        <select
+          aria-label={label + "选项"}
+          value={isCustom ? "custom" : String(value)}
+          disabled={disabled}
+          onChange={(event) => {
+            const next = event.target.value;
+            setCustom(next === "custom");
+            if (next !== "custom") onChange(Number(next));
+          }}
+        >
+          {BUDGET_PRESETS.map((amount) => (
+            <option key={amount} value={amount}>
+              {amount / 1024}K（{amount.toLocaleString("en-US")}）
+            </option>
+          ))}
+          <option value="custom">自定义</option>
+        </select>
+      </label>
+      {isCustom && (
+        <label>
+          自定义数值
+          <input
+            aria-label={label + "自定义值"}
+            type="number"
+            step={1}
+            min={min}
+            value={value || ""}
+            disabled={disabled}
+            onChange={(event) => onChange(Number(event.target.value))}
+          />
+        </label>
+      )}
+    </div>
+  );
+}
+
 export function ModelSettings({
   settings,
   onRefresh,
@@ -458,35 +515,25 @@ export function ModelSettings({
               </select>
             </label>
             <div className="model-number-grid">
-              <label>
-                最大输出Token
-                <input
-                  type="number"
-                  min={256}
-                  max={65536}
-                  value={profile.max_tokens}
-                  disabled={disabled}
-                  onChange={(e) =>
-                    update({ max_tokens: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <label>
-                单次材料字数
-                <input
-                  type="number"
-                  min={4000}
-                  max={120000}
-                  value={profile.context_chars}
-                  disabled={disabled}
-                  onChange={(e) =>
-                    update({ context_chars: Number(e.target.value) })
-                  }
-                />
-              </label>
+              <ModelBudget
+                key={provider + ":tokens"}
+                label="最大输出Token"
+                min={256}
+                value={profile.max_tokens}
+                disabled={disabled}
+                onChange={(value) => update({ max_tokens: value })}
+              />
+              <ModelBudget
+                key={provider + ":context"}
+                label="单次材料字数"
+                min={4000}
+                value={profile.context_chars}
+                disabled={disabled}
+                onChange={(value) => update({ context_chars: value })}
+              />
             </div>
             <small>
-              长材料会自动分段。小模型可减少单次材料字数；完整学习笔记适合使用较大上下文的模型。
+              1K=1024。自定义不设应用上限，实际可用额度由所选模型决定。材料超过所填字数时自动分段；这里的材料字数不等于模型的Token数。
             </small>
             <label className="inline-check">
               <input

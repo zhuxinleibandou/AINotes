@@ -162,9 +162,10 @@ async def request_json(profile, method, path, payload=None):
     async with httpx.AsyncClient(timeout=httpx.Timeout(900,connect=10),follow_redirects=False,trust_env=profile['backend']!='local') as client:
         async with client.stream(method,profile['base_url']+path,headers=headers,json=payload) as response:
             raw = bytearray()
+            response_limit = max(8_000_000,profile['max_tokens']*16)
             async for chunk in response.aiter_bytes():
                 raw.extend(chunk)
-                if len(raw)>8_000_000: raise GenerationError('模型返回内容过大，请减少输出长度后重试。')
+                if len(raw)>response_limit: raise GenerationError('模型返回内容超过配置的输出预算，请检查输出设置后重试。')
             try: body = json.loads(raw)
             except ValueError: body = None
             if response.status_code >= 300:
