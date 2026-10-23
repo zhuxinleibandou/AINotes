@@ -77,6 +77,7 @@ export function ModelSettings({
   const provider = backend === "local" ? localProvider : apiProvider;
   const profile = profiles[provider];
   const preset = settings?.provider_presets?.[provider];
+  const availableModels = modelLists[provider] ?? preset?.models ?? [];
   function changed() {
     setSaved(false);
     setResult(null);
@@ -139,7 +140,7 @@ export function ModelSettings({
         setResult({
           ok: true,
           message: value.models?.length
-            ? `已读取 ${value.models.length} 个模型，可在模型ID中选择。`
+            ? `已读取 ${value.models.length} 个模型，可在模型列表中选择。`
             : "服务未返回模型列表，可手动填写模型ID。",
         });
       } else setResult({ ok: true, message: value.message || "测试完成。" });
@@ -374,20 +375,26 @@ export function ModelSettings({
           </small>
           <div className="model-id-row">
             <label>
-              模型ID · 可选择或输入
-              <input
-                aria-label="模型ID"
-                list="available-models"
-                value={profile.model}
-                disabled={disabled}
-                placeholder="先读取列表，或填写服务提供的模型ID"
+              模型列表
+              <select
+                aria-label="模型列表"
+                value={
+                  availableModels.includes(profile.model) ? profile.model : ""
+                }
+                disabled={disabled || !availableModels.length}
                 onChange={(e) => update({ model: e.target.value })}
-              />
-              <datalist id="available-models">
-                {(modelLists[provider] || preset.models).map((id) => (
-                  <option key={id} value={id} />
+              >
+                <option value="" disabled>
+                  {availableModels.length
+                    ? "选择模型，或在下方手动填写"
+                    : "暂无模型，请读取列表或手动填写"}
+                </option>
+                {availableModels.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </label>
             <button
               className="button secondary"
@@ -402,6 +409,16 @@ export function ModelSettings({
               读取模型列表
             </button>
           </div>
+          <label>
+            模型ID · 可手动填写
+            <input
+              aria-label="模型ID"
+              value={profile.model}
+              disabled={disabled}
+              placeholder="填写服务提供的模型ID"
+              onChange={(e) => update({ model: e.target.value })}
+            />
+          </label>
           <details className="model-advanced">
             <summary>更多模型选项</summary>
             <label>
