@@ -257,6 +257,7 @@ def test_switch_remains_locked_until_inflight_request_is_closed(db,monkeypatch,a
         assert store.get_job(job['id'])['status']==waiting
         assert client.put('/api/settings',json={'whisper_model':'mlx-community/whisper-large-v3-turbo','generation_backend':'codex'}).status_code==409
         assert client.post('/api/settings/clear-cache').status_code==409
+        assert client.delete('/api/notes/'+item['id']).status_code==409
     finally:
         allow_close.set();thread.join(5)
     assert not thread.is_alive()
@@ -264,6 +265,7 @@ def test_switch_remains_locked_until_inflight_request_is_closed(db,monkeypatch,a
     assert store.get_note(item['id'])['segments']
     assert client.get('/api/settings/tasks').json()['active_tasks']==[]
     assert client.put('/api/settings',json={'whisper_model':'mlx-community/whisper-large-v3-turbo','generation_backend':'codex'}).status_code==200
+    assert client.delete('/api/notes/'+item['id']).status_code==200
 
 def test_pause_at_final_completion_never_leaves_phantom_running_task(db,monkeypatch):
     save('ollama',model='local-test-model')

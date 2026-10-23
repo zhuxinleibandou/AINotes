@@ -52,6 +52,7 @@ import type {
 import { api, date, download, post, put } from "./api";
 import { Editor, Original, Reading } from "./Reading";
 import { ModelSettings } from "./ModelSettings";
+import { DeleteNote } from "./DeleteNote";
 import { CourseView, GenerateEmpty, Quiz, LearningHistory } from "./Learning";
 const Poster = lazy(() =>
   import("./Visuals").then((m) => ({ default: m.Poster })),
@@ -346,12 +347,16 @@ function Recording({
 function NoteList({
   notes,
   onOpen,
+  onDeleted,
   compact = false,
 }: {
   notes: NoteCard[];
   onOpen: (id: string) => void;
+  onDeleted: (id: string) => void;
   compact?: boolean;
 }) {
+  const [deleting, setDeleting] = useState<NoteCard | null>(null);
+  const deleteTrigger = useRef<HTMLButtonElement | null>(null);
   if (!notes.length)
     return (
       <div className="library-empty">
@@ -368,64 +373,92 @@ function NoteList({
       </div>
     );
   return (
-    <div className={"notes-grid " + (compact ? "compact" : "")}>
-      {notes.map((note) => (
-        <button
-          className="note-card"
-          key={note.id}
-          onClick={() => onOpen(note.id)}
-        >
-          <div className="note-card-top">
-            <span className={"source-icon " + note.source.kind}>
-              {note.source.kind === "url" ? (
-                <Link size={19} />
-              ) : note.source.kind === "file" ? (
-                <FileText size={19} />
-              ) : (
-                <NotebookPen size={19} />
-              )}
-            </span>
-            <span>{date(note.created)}</span>
-            <ArrowUpRight size={16} />
-          </div>
-          <h3>{note.title}</h3>
-          <p>{note.subtitle || note.job?.stage || "等待整理"}</p>
-          <div className="note-card-bottom">
-            <span>
-              {note.source.kind === "url"
-                ? "链接笔记"
-                : note.source.kind === "file"
-                  ? "文件笔记"
-                  : "正文笔记"}
-            </span>
-            <span
-              className={
-                active(note.job)
-                  ? "processing-label"
-                  : note.ready
-                    ? "ready-label"
-                    : "muted"
-              }
+    <>
+      <div className={"notes-grid " + (compact ? "compact" : "")}>
+        {notes.map((note) => (
+          <article className="note-card-shell" key={note.id}>
+            <button
+              className="note-card"
+              aria-label={"打开笔记：" + note.title}
+              onClick={() => onOpen(note.id)}
             >
-              {active(note.job) ? (
-                <>
-                  <Loader2 size={12} className="spin" />
-                  处理中
-                </>
-              ) : note.job?.status === "paused" ? (
-                "已暂停"
-              ) : note.ready ? (
-                "已整理"
-              ) : note.job?.status === "failed" ? (
-                "待重试"
-              ) : (
-                "未完成"
-              )}
-            </span>
-          </div>
-        </button>
-      ))}
-    </div>
+              <div className="note-card-top">
+                <span className={"source-icon " + note.source.kind}>
+                  {note.source.kind === "url" ? (
+                    <Link size={19} />
+                  ) : note.source.kind === "file" ? (
+                    <FileText size={19} />
+                  ) : (
+                    <NotebookPen size={19} />
+                  )}
+                </span>
+                <span>{date(note.created)}</span>
+              </div>
+              <h3>{note.title}</h3>
+              <p>{note.subtitle || note.job?.stage || "等待整理"}</p>
+              <div className="note-card-bottom">
+                <span>
+                  {note.source.kind === "url"
+                    ? "链接笔记"
+                    : note.source.kind === "file"
+                      ? "文件笔记"
+                      : "正文笔记"}
+                </span>
+                <span
+                  className={
+                    active(note.job)
+                      ? "processing-label"
+                      : note.ready
+                        ? "ready-label"
+                        : "muted"
+                  }
+                >
+                  {active(note.job) ? (
+                    <>
+                      <Loader2 size={12} className="spin" />
+                      处理中
+                    </>
+                  ) : note.job?.status === "paused" ? (
+                    "已暂停"
+                  ) : note.ready ? (
+                    "已整理"
+                  ) : note.job?.status === "failed" ? (
+                    "待重试"
+                  ) : (
+                    "未完成"
+                  )}
+                </span>
+              </div>
+            </button>
+            <button
+              className="note-delete"
+              aria-label={"删除笔记：" + note.title}
+              title="删除笔记与本地文件"
+              onClick={(event) => {
+                deleteTrigger.current = event.currentTarget;
+                setDeleting(note);
+              }}
+            >
+              <Trash2 size={16} />
+            </button>
+          </article>
+        ))}
+      </div>
+      {deleting && (
+        <DeleteNote
+          id={deleting.id}
+          title={deleting.title}
+          onClose={() => {
+            setDeleting(null);
+            deleteTrigger.current?.focus();
+          }}
+          onDeleted={() => {
+            setDeleting(null);
+            onDeleted(deleting.id);
+          }}
+        />
+      )}
+    </>
   );
 }
 function Home({
@@ -433,12 +466,14 @@ function Home({
   settings,
   onImported,
   onRefresh,
+  onDeleted,
   onError,
 }: {
   notes: NoteCard[];
   settings: Settings | null;
   onImported: (id: string, tab: Tab) => void;
   onRefresh: () => void;
+  onDeleted: (id: string) => void;
   onError: (s: string) => void;
 }) {
   const [mode, setMode] = useState<"url" | "file" | "text" | "record">(
@@ -870,6 +905,7 @@ function Home({
         </div>
         <NoteList
           notes={notes.slice(0, 6)}
+          onDeleted={onDeleted}
           compact
           onOpen={(id) => onImported(id, "overview")}
         />
@@ -1540,6 +1576,14 @@ export default function App() {
       .then(setSettings)
       .catch((e) => setError(e.message));
   }, []);
+  const deleted = useCallback(
+    (noteId: string) => {
+      setNotes((old) => old.filter((note) => note.id !== noteId));
+      refresh();
+      refreshSettings();
+    },
+    [refresh, refreshSettings],
+  );
   useEffect(() => {
     refresh();
     refreshSettings();
@@ -1681,6 +1725,7 @@ export default function App() {
             />
           </div>
           <NoteList
+            onDeleted={deleted}
             notes={notes.filter((n) =>
               n.title.toLowerCase().includes(search.toLowerCase()),
             )}
@@ -1694,6 +1739,7 @@ export default function App() {
           settings={settings}
           onImported={open}
           onRefresh={refresh}
+          onDeleted={deleted}
           onError={setError}
         />
       </div>

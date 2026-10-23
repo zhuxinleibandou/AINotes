@@ -219,16 +219,25 @@ async def import_file(file:UploadFile=File(...), instructions:str=Form(''), form
             raise
         finally:
             await file.close()
-    note = store.create_note({'kind':'file','filename':filename,'size':size},Path(filename).stem,instructions,format,mode)
-    dest = store.DATA/'materials'/note['id']/'source'
-    dest.mkdir(parents=True)
-    shutil.move(temp,dest/filename)
+    try:
+        note = store.create_note({'kind':'file','filename':filename,'size':size},Path(filename).stem,instructions,format,mode,source_file=temp)
+    finally:
+        temp.unlink(missing_ok=True)
     job = store.create_job(note['id'],'summary')
     return {'note':public_note(note),'job':job}
 
 @app.get('/api/notes/{ident}')
 def get_note(ident:str):
     return public_note(store.get_note(ident))
+
+@app.get('/api/notes/{ident}/delete-info')
+def deletion_info(ident:str):
+    return store.deletion_info(ident)
+
+@app.delete('/api/notes/{ident}')
+def delete_note(ident:str):
+    store.delete_note(ident)
+    return {'ok':True}
 
 @app.post('/api/notes/{ident}/generate')
 def generate_note(ident:str,request:GenerateRequest):
@@ -320,9 +329,7 @@ def export_markdown(ident:str,kind:str):
     note = store.get_note(ident)
     body = markdown(note,kind)
     filename = note['title'].replace('/','-').replace('\\','-')[:100]+('-速览' if kind=='overview' else '-大纲' if kind=='outline' else '')+'.md'
-    export_dir = store.DATA/'exports'/ident
-    export_dir.mkdir(parents=True,exist_ok=True)
-    (export_dir/f'r{note["revision"]}-{kind}.md').write_text(body)
+    store.write_export(ident,f'r{note["revision"]}-{kind}.md',body.encode('utf-8'))
     return Response(body,media_type='text/markdown; charset=utf-8',headers={'Content-Disposition':"attachment; filename*=UTF-8''"+quote(filename)})
 
 @app.post('/api/notes/{ident}/exports')
@@ -337,9 +344,7 @@ async def save_export(ident:str,file:UploadFile=File(...), revision:int=Form(...
     await file.close()
     if len(data)>64*1024*1024:
         raise HTTPException(413,'导出文件过大。')
-    folder = store.DATA/'exports'/ident
-    folder.mkdir(parents=True,exist_ok=True)
-    (folder/f'r{revision}-{store.uid()[:8]}-{name}').write_bytes(data)
+    store.write_export(ident,f'r{revision}-{store.uid()[:8]}-{name}',data)
     return {'ok':True}
 
 @app.get('/api/notes/{ident}/source')

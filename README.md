@@ -38,6 +38,7 @@ npm --prefix frontend run build
 5. 长图可导出 1080px PNG；过长时按卡片边界分图打包 ZIP。脑图可缩放、展开收起、查看要点，导出 SVG、PNG 或 Markdown 大纲。
 6. 课程先生成目录，再准备单节讲解与练习；每三节设阶段测验，结束可做最终测试。测试支持单选、多选和判断，答题与完成进度自动保存，全部作答后可重做错题。
 7. 修改笔记会保存新版本。已有课程与测验保留，过期内容会提示更新；重新生成的旧课程和答题记录可在“历史课程与答题记录”中查看。
+8. 首页最近笔记和笔记库卡片右上角均有删除按钮。确认后清理该笔记全部版本、课程与答题历史、任务记录及资料库内的原材料副本、缓存和导出文件；删除不可撤销。正在处理的笔记先点击停止任务，待处理完全退出后再确认。电脑其他位置的原始文件、已下载文件和手动备份由你管理，不随笔记删除。
 
 发布包以空笔记库启动。开发目录保留的功能验收笔记与平台失败记录不会随包分发。
 
@@ -131,6 +132,7 @@ npm --prefix frontend run build
 
 - `POST /api/import`、`POST /api/import/file`：导入并创建后台任务。
 - `GET /api/notes?q=`、`GET/PUT /api/notes/{id}`：搜索、阅读及带版本检查的保存。
+- `GET /api/notes/{id}/delete-info`、`DELETE /api/notes/{id}`：删除前任务检查，清理该笔记与全部历史和资料库内文件；在途任务返回409。
 - `POST /api/notes/{id}/generate`：summary/course/lesson/quiz/stage/vision。
 - `GET /api/jobs/{id}`、`POST /api/jobs/{id}/cancel|retry`：任务查询、取消与重试。
 - `PUT /api/notes/{id}/progress`：以epoch校验题目版本，原子合并本次变更的答案、新完成章节与阅读位置；答案null用于重做。

@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import sqlite3
 import time
 import uuid
@@ -52,13 +53,22 @@ def init():
         con.execute("UPDATE jobs SET status='paused', stage='已暂停，可以继续处理', updated=? WHERE status='pausing'", (now(),))
         con.execute("UPDATE jobs SET status='cancelled', stage='已取消', updated=? WHERE status='cancelling'", (now(),))
 
-def create_note(source, title, instructions='', fmt='poster', mode='summary'):
+def create_note(source, title, instructions='', fmt='poster', mode='summary', source_file=None):
     ident = uid()
     body = dict(id=ident, title=title or '正在整理材料', source=source, instructions=instructions,
                 format=fmt, mode=mode, segments=[], scope='', warnings=[], note=None, revision=0,
                 artifacts={}, artifact_revisions={}, progress={'completed': [], 'answers': {}, 'last_chapter': ''})
-    with connection() as con:
-        con.execute('INSERT INTO notes VALUES(?,?,?,?,?)', (ident, body['title'], json.dumps(body, ensure_ascii=False), now(), now()))
+    folder=DATA/'materials'/ident
+    try:
+        with connection() as con:
+            con.execute('INSERT INTO notes VALUES(?,?,?,?,?)', (ident, body['title'], json.dumps(body, ensure_ascii=False), now(), now()))
+            if source_file is not None:
+                # Publish a file note only after its source is in place, before deletion can see it.
+                target=folder/'source';target.mkdir(parents=True)
+                shutil.move(source_file,target/source['filename'])
+    except BaseException:
+        if source_file is not None: shutil.rmtree(folder,ignore_errors=True)
+        raise
     return get_note(ident)
 
 def get_note(ident):
@@ -114,6 +124,8 @@ def list_notes(query=''):
 def create_job(note_id, kind, args=None):
     with connection() as con:
         con.execute('BEGIN IMMEDIATE')
+        if not con.execute('SELECT 1 FROM notes WHERE id=?',(note_id,)).fetchone():
+            raise KeyError(note_id)
         active = con.execute("SELECT * FROM jobs WHERE note_id=? AND status IN ('queued','running','pausing','cancelling')", (note_id,)).fetchone()
         if active:
             raise ValueError('这份材料已有任务正在处理，请先等待或取消。')
@@ -130,8 +142,8 @@ def get_job(ident):
 
 def latest_job(note_id):
     with connection() as con:
-        row = con.execute('SELECT id FROM jobs WHERE note_id=? ORDER BY created DESC LIMIT 1', (note_id,)).fetchone()
-    return get_job(row['id']) if row else None
+        row = con.execute('SELECT * FROM jobs WHERE note_id=? ORDER BY created DESC LIMIT 1', (note_id,)).fetchone()
+    return dict(row) | {'args':json.loads(row['args'])} if row else None
 
 def set_job(ident, **changes):
     allowed = {'status','stage','error'}
@@ -142,8 +154,46 @@ def set_job(ident, **changes):
 
 def next_job():
     with connection() as con:
-        row = con.execute("SELECT id FROM jobs WHERE status='queued' ORDER BY created LIMIT 1").fetchone()
-    return get_job(row['id']) if row else None
+        row = con.execute("SELECT * FROM jobs WHERE status='queued' ORDER BY created LIMIT 1").fetchone()
+    return dict(row) | {'args':json.loads(row['args'])} if row else None
+
+def deletion_info(ident):
+    with connection() as con:
+        row=con.execute('SELECT title FROM notes WHERE id=?',(ident,)).fetchone()
+        if not row: raise KeyError(ident)
+        job=con.execute("SELECT id,status,stage FROM jobs WHERE note_id=? AND status IN ('queued','running','pausing','cancelling') LIMIT 1",(ident,)).fetchone()
+    return {'id':ident,'title':row['title'],'active_job':dict(job) if job else None}
+
+def delete_note(ident):
+    with connection() as con:
+        con.execute('BEGIN IMMEDIATE')
+        row=con.execute('SELECT id FROM notes WHERE id=?',(ident,)).fetchone()
+        if not row: raise KeyError(ident)
+        if con.execute("SELECT 1 FROM jobs WHERE note_id=? AND status IN ('queued','running','pausing','cancelling') LIMIT 1",(ident,)).fetchone():
+            raise ValueError('请先停止这份笔记的任务，等待处理完全停止后再删除。')
+        if len(ident)!=32 or any(c not in '0123456789abcdef' for c in ident):
+            raise ValueError('笔记编号无效，无法安全清理文件。')
+        folders=[DATA/name/ident for name in ('materials','exports')]
+        if any(folder.parent.resolve()!=DATA/folder.parent.name for folder in folders):
+            raise ValueError('资料目录包含外部链接，无法安全清理，请先检查存储目录。')
+        try:
+            for folder in folders:
+                if folder.is_symlink() or folder.is_file(): folder.unlink()
+                elif folder.exists(): shutil.rmtree(folder)
+        except OSError:
+            raise ValueError('本地文件未能全部清理，笔记记录已保留。请检查文件权限后重试。') from None
+        for table in ('versions','artifact_history','jobs'):
+            con.execute(f'DELETE FROM {table} WHERE note_id=?',(ident,))
+        con.execute('DELETE FROM notes WHERE id=?',(ident,))
+
+def write_export(ident,filename,data):
+    # Serialize exports with deletion so a delayed download cannot recreate deleted files.
+    with connection() as con:
+        con.execute('BEGIN IMMEDIATE')
+        if not con.execute('SELECT 1 FROM notes WHERE id=?',(ident,)).fetchone(): raise KeyError(ident)
+        folder=DATA/'exports'/ident
+        folder.mkdir(parents=True,exist_ok=True)
+        (folder/filename).write_bytes(data)
 
 def active_tasks():
     with connection() as con:

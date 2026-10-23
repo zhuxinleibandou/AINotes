@@ -648,6 +648,106 @@ label {
     border-color 0.2s,
     box-shadow 0.2s;
 }
+.note-card-shell {
+  position: relative;
+  min-width: 0;
+  display: flex;
+}
+.note-card-shell .note-card {
+  width: 100%;
+}
+.note-card-shell .note-card-top {
+  padding-right: 30px;
+}
+.note-delete {
+  position: absolute;
+  top: 15px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #a28c79;
+  background: transparent;
+  cursor: pointer;
+}
+.note-delete:hover {
+  color: #a84e3c;
+  background: #f9e9e1;
+}
+.note-delete:focus-visible {
+  outline: 2px solid #db825f;
+  outline-offset: 2px;
+}
+.delete-dialog {
+  width: min(480px, calc(100vw - 40px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 30px;
+  overflow-y: auto;
+  border: 1px solid #e8d6c6;
+  border-radius: 18px;
+  background: #fffdfa;
+  color: #352f2a;
+  box-shadow: 0 20px 90px #352f2a30;
+}
+.delete-dialog::backdrop {
+  background: #352f2a66;
+}
+.delete-dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  background: #f9e9e1;
+  border-radius: 12px;
+  color: #b16148;
+  margin-bottom: 18px;
+}
+.delete-dialog h2 {
+  font-size: 22px;
+  margin-bottom: 14px;
+}
+.delete-dialog p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #86796d;
+  margin: 12px 0;
+}
+.delete-dialog .delete-note-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #352f2a;
+  overflow-wrap: anywhere;
+}
+.delete-dialog .delete-warning,
+.delete-dialog .delete-error {
+  color: #a04f39;
+}
+.delete-active-task {
+  border: 1px solid #eeddd0;
+  background: #fcf3e9;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.delete-dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 26px;
+}
+.button.danger {
+  background: #af5d46;
+  border: 1px solid #af5d46;
+  color: white;
+}
+.button.danger:hover {
+  background: #984c37;
+}
 .note-card:hover {
   border-color: #dbad8c;
   box-shadow: 0 8px 20px #765d3c08;
