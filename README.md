@@ -19,15 +19,17 @@ npm --prefix frontend run build
 .venv/bin/python start.py
 ```
 
-已安装 Apple 命令行工具可跳过 `xcode-select --install`。没有 Homebrew 时，按各工具官网安装。浏览器打开 `http://127.0.0.1:8317/`，在设置页选择生成方式并测试。下载或克隆后也可以双击 `启动拾页.command`；源码首次启动需要 npm 构建页面，预构建 Beta ZIP 则不需要 Node.js。
+已安装 Apple 命令行工具可跳过 `xcode-select --install`。没有 Homebrew 时，按各工具官网安装。浏览器打开 `http://127.0.0.1:8317/`，在设置页选择生成方式并测试。下载或克隆后也可以双击 `启动拾页.command`；源码首次启动需要 npm 构建页面，预构建 Beta 安装包则不需要 Node.js。
 
 项目运行时会在根目录创建 `data/`，不会自动读取其他目录的笔记。请勿同时启动不同目录的副本占用8317端口。停止服务可在启动窗口按 Control+C；已有材料和学习进度保留。
 
 ## 打开本地 Beta
 
-双击本目录的 **启动拾页.command**，浏览器会打开 <http://127.0.0.1:8317/>。终端窗口需要保持打开。再次双击会复用已启动的网站。
+打开 DMG，把拾页文件夹拖到「应用程序」。在复制后的文件夹内双击 **启动拾页.command**，浏览器会打开 <http://127.0.0.1:8317/>。终端窗口需要保持打开。再次双击会复用已启动的网站。
 
 版本：**0.1.0-beta.2**。适用 Apple Silicon Mac。需要 uv、FFmpeg 和 Apple 命令行工具；使用 Codex 生成时另需已登录且支持本应用参数的 Codex CLI，也可在设置中配置模型 API 或本地模型服务。发布包已包含构建页面，正常使用不需要 Node.js；启动脚本按锁文件准备和更新 Python 环境。安装、升级、备份与已知限制见 [BETA.md](BETA.md)。
+
+在 macOS 上打包可运行 `npm --prefix frontend ci`、`npm --prefix frontend run build`，再执行 `python3 scripts/package_dmg.py`。DMG、ZIP 和各自的 SHA-256 校验文件生成在 `release/`。
 
 ## 使用
 

@@ -4,11 +4,13 @@
 
 ## 安装与打开
 
-1. 解压整个 ZIP，将文件夹放在准备长期保存的位置。不要只移动启动文件。
-2. 准备 uv、FFmpeg、Apple 命令行工具，；如选择 Codex 生成，还需已登录的 Codex。可在终端安装 uv / FFmpeg：`brew install uv ffmpeg`；Apple 命令行工具：`xcode-select --install`。没有 Homebrew 时，按各工具官网说明安装。
+1. 双击打开 DMG，把拾页文件夹拖到镜像内的 `Applications` 快捷方式，或复制到自己有写入权限的目录，再推出镜像。使用 ZIP 时，请解压整个文件夹。新安装会创建自己的笔记库，升级时请按下方说明备份并迁移资料。
+2. 准备 uv、FFmpeg、Apple 命令行工具；如选择 Codex 生成，还需已登录的 Codex。可在终端安装 uv / FFmpeg：`brew install uv ffmpeg`；Apple 命令行工具：`xcode-select --install`。没有 Homebrew 时，按各工具官网说明安装。
 3. 双击 **启动拾页.command**。首次会按锁文件创建 Python 3.12 环境；预构建页面已包含在包中，正常使用不需要 Node.js。若启动文件没有执行权限，在终端进入解压目录后执行 `chmod +x 启动拾页.command`。
 4. 页面地址：`http://127.0.0.1:8317/`。保持启动窗口打开，在设置中选择 Codex、模型 API 或本地模型并检查连接。
 5. 第一次音频转写会下载约1.6GB的 large-v3-turbo 模型。请给运行环境、资料与模型预留至少6GB磁盘空间。
+
+DMG 版为未签名、未经 Apple 公证的 Beta。如果 macOS 拦截启动，请先核对下载来源和 SHA-256，再按「系统设置 → 隐私与安全性」中的提示处理。
 
 Codex 需支持非交互执行、`--ignore-user-config`、`--output-schema` 和 `--output-last-message`；本机验证版本为 `0.163.0-alpha.10.2`。保留用户原有登录和模型设置，且不启用用户的 MCP、插件或 Hook。该 CLI 较旧时可能不兼容，生成失败会保留原文，更新兼容的 Codex 后重试。
 
