@@ -21,4 +21,4 @@ if [[ ! -f frontend/dist/index.html ]]; then
   echo '正在准备页面…'
   (cd frontend && npm ci --no-audit --no-fund && npm run build)
 fi
-exec .venv/bin/python start.py
+exec "${UV_PROJECT_ENVIRONMENT:-.venv}/bin/python" start.py
